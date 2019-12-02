@@ -97,12 +97,16 @@ fn main() -> Result<(), std::io::Error> {
             machine.memory[2] = verb;
             machine.execute();
             if machine.memory[0] == 19690720 {
-                println!("100 * noun + verb == 100 * {} + {} == {}", noun, verb, 100 * noun + verb);
+                println!(
+                    "100 * noun + verb == 100 * {} + {} == {}",
+                    noun,
+                    verb,
+                    100 * noun + verb
+                );
                 return Ok(());
             }
         }
     }
-
 
     Ok(())
 }
@@ -113,30 +117,29 @@ mod tests {
 
     #[test]
     fn it_handles_test_cases() {
-
-        let mut m = Machine::new(vec![1,9,10,3,2,3,11,0,99,30,40,50]);
+        let mut m = Machine::new(vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50]);
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![3500,9,10,70,2,3,11,0,99,30,40,50]);
+        assert!(m.memory == vec![3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50]);
 
-        let mut m = Machine::new(vec![1,0,0,0,99]);
+        let mut m = Machine::new(vec![1, 0, 0, 0, 99]);
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![2,0,0,0,99]);
+        assert!(m.memory == vec![2, 0, 0, 0, 99]);
 
-        let mut m = Machine::new(vec![2,3,0,3,99]);
+        let mut m = Machine::new(vec![2, 3, 0, 3, 99]);
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![2,3,0,6,99]);
+        assert!(m.memory == vec![2, 3, 0, 6, 99]);
 
-        let mut m = Machine::new(vec![2,4,4,5,99,0]);
+        let mut m = Machine::new(vec![2, 4, 4, 5, 99, 0]);
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![2,4,4,5,99,9801]);
+        assert!(m.memory == vec![2, 4, 4, 5, 99, 9801]);
 
-        let mut m = Machine::new(vec![1,1,1,4,99,5,6,0,99]);
+        let mut m = Machine::new(vec![1, 1, 1, 4, 99, 5, 6, 0, 99]);
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![30,1,1,4,2,5,6,0,99]);
+        assert!(m.memory == vec![30, 1, 1, 4, 2, 5, 6, 0, 99]);
     }
 }
