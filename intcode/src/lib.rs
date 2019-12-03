@@ -1,6 +1,6 @@
 #[derive(Debug, Clone)]
 pub struct Machine {
-    pub memory: Vec<i32>,
+    memory: Vec<i32>,
     program_counter: i32,
 }
 
@@ -43,6 +43,18 @@ impl Machine {
             println!("{:?}", self);
             self.program_counter += 4;
         }
+    }
+
+    pub fn output(self: &Self) -> i32 {
+        self.memory[0]
+    }
+
+    pub fn set_noun(self: &mut Self, noun: i32) {
+        self.memory[1] = noun;
+    }
+
+    pub fn set_verb(self: &mut Self, verb: i32) {
+        self.memory[2] = verb;
     }
 
     fn load(self: &Self, addr: i32) -> i32 {

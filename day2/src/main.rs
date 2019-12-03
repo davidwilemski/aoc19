@@ -33,10 +33,10 @@ fn main() -> Result<(), std::io::Error> {
         for verb in 0..99 {
             println!("noun: {}, verb: {}", noun, verb);
             let mut machine = Machine::new(original_state.clone());
-            machine.memory[1] = noun;
-            machine.memory[2] = verb;
+            machine.set_noun(noun);
+            machine.set_verb(verb);
             machine.execute();
-            if machine.memory[0] == 19690720 {
+            if machine.output() == 19690720 {
                 println!(
                     "100 * noun + verb == 100 * {} + {} == {}",
                     noun,
