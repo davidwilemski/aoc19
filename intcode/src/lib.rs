@@ -12,10 +12,6 @@ impl Machine {
         }
     }
 
-    fn pc(self: &Self) -> i32 {
-        self.program_counter
-    }
-
     pub fn execute(self: &mut Self) {
         loop {
             match self.load(self.program_counter) {
@@ -24,17 +20,17 @@ impl Machine {
                     break;
                 }
                 1 => {
-                    let op1 = self.load(self.load(self.pc() + 1));
-                    let op2 = self.load(self.load(self.pc() + 2));
-                    let out_reg = self.load(self.pc() + 3);
+                    let op1 = self.load(self.load(self.program_counter + 1));
+                    let op2 = self.load(self.load(self.program_counter + 2));
+                    let out_reg = self.load(self.program_counter + 3);
                     println!("ADD {} {} into {}", op1, op2, out_reg);
 
                     self.store(out_reg, op1 + op2);
                 }
                 2 => {
-                    let op1 = self.load(self.load(self.pc() + 1));
-                    let op2 = self.load(self.load(self.pc() + 2));
-                    let out_reg = self.load(self.pc() + 3);
+                    let op1 = self.load(self.load(self.program_counter + 1));
+                    let op2 = self.load(self.load(self.program_counter + 2));
+                    let out_reg = self.load(self.program_counter + 3);
                     println!("MULT {} {} into {}", op1, op2, out_reg);
 
                     self.store(out_reg, op1 * op2);
