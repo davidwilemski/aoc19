@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 fn main() {
     // range: 265275-781584
     //
@@ -14,7 +16,11 @@ fn main() {
         // Going from left to right, the digits never decrease; they only ever increase or stay the
         // same
         if !digits_do_not_decrease(i) {
-            continue
+            continue;
+        }
+
+        if !digit_counts_exactly_two(i) {
+            continue;
         }
 
         println!("{}", i);
@@ -41,5 +47,26 @@ fn digits_do_not_decrease(val: i32) -> bool {
     if &vals == &rev_sorted_vals {
         return true;
     }
+    false
+}
+
+fn digit_counts_exactly_two(val: i32) -> bool {
+    let str_val = val.to_string();
+    let mut digit_counts = HashMap::new();
+
+    for c in str_val.chars() {
+        if let Some(count) = digit_counts.get_mut(&c) {
+            *count += 1;
+        } else {
+            digit_counts.insert(c, 1);
+        }
+    }
+
+    for v in digit_counts.values() {
+        if *v == 2 {
+            return true;
+        }
+    }
+
     false
 }
