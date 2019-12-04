@@ -12,7 +12,6 @@ fn main() {
             continue;
         }
 
-
         // Going from left to right, the digits never decrease; they only ever increase or stay the
         // same
         if !digits_do_not_decrease(i) {
@@ -24,23 +23,25 @@ fn main() {
         }
 
         println!("{}", i);
-
     }
 }
 
 fn has_adjacent_equal_digits(val: i32) -> bool {
-        let str_val = val.to_string();
-        for vals in str_val.chars().collect::<Vec<char>>().windows(2) {
-            if vals[0] == vals[1] {
-                return true;
-            }
+    let str_val = val.to_string();
+    for vals in str_val.chars().collect::<Vec<char>>().windows(2) {
+        if vals[0] == vals[1] {
+            return true;
         }
-        false
+    }
+    false
 }
 
 fn digits_do_not_decrease(val: i32) -> bool {
     let str_val = val.to_string();
-    let vals = str_val.chars().map(|c| c.to_digit(10).unwrap()).collect::<Vec<u32>>();
+    let vals = str_val
+        .chars()
+        .map(|c| c.to_digit(10).unwrap())
+        .collect::<Vec<u32>>();
     let mut rev_sorted_vals = vals.clone();
     rev_sorted_vals.sort();
 
