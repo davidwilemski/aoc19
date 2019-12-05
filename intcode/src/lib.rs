@@ -14,7 +14,8 @@ impl Machine {
 
     pub fn execute(self: &mut Self) {
         loop {
-            match self.load(self.program_counter) {
+            let instr = self.load(self.program_counter);
+            match instr {
                 99 => {
                     println!("HALT");
                     break;
@@ -35,13 +36,32 @@ impl Machine {
 
                     self.store(out_reg, op1 * op2);
                 }
+                3 => {
+                    let op1_addr = self.load(self.program_counter + 1);
+                    println!("STORE_INPUT {} to {}", op1_addr, op1_addr);
+
+                    self.store(op1_addr, op1_addr);
+                }
+                4 => {
+                    let addr = self.load(self.program_counter + 1);
+                    let val = self.load(addr);
+                    println!("OUTPUT addr {}: val: {}", addr, val);
+                }
                 _ => {
                     panic!("something broke!");
                 }
             }
 
             println!("{:?}", self);
-            self.program_counter += 4;
+            match instr {
+                3|4 => {
+                    self.program_counter += 2;
+                }
+                _ => {
+                    self.program_counter += 4;
+                }
+            }
+
         }
     }
 
@@ -98,5 +118,13 @@ mod tests {
         m.execute();
         println!("{:?}", m.memory);
         assert!(m.memory == vec![30, 1, 1, 4, 2, 5, 6, 0, 99]);
+    }
+
+    #[test]
+    fn it_handles_input_instr_opcode_3() {
+        let mut m = Machine::new(vec![3, 0, 99]);
+        m.execute();
+        println!("{:?}", m.memory);
+        assert!(m.memory == vec![0, 0, 99]);
     }
 }
