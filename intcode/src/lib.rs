@@ -4,6 +4,15 @@ pub struct Machine {
     program_counter: i32,
 }
 
+#[derive(Debug)]
+struct Instruction {
+    length: usize,
+    opcode: i32,
+    mode_op1: i32,
+    mode_op2: i32,
+    mode_op3: i32, // basically do not use
+}
+
 impl Machine {
     pub fn new(memory: Vec<i32>) -> Self {
         Machine {
@@ -14,24 +23,24 @@ impl Machine {
 
     pub fn execute(self: &mut Self) {
         loop {
-            let (instr, mode_op1, mode_op2, _) = self.get_instr_and_modes();
-            println!("{}, {}, {}, {}", instr, mode_op1, mode_op2, "xx");
-            match instr {
+            let instr = self.get_instr_and_modes();
+            println!("Instr: {:?}", instr);
+            match instr.opcode {
                 99 => {
                     println!("HALT");
                     break;
                 }
                 1 => {
-                    let op1 = self.load_with_mode(self.program_counter + 1, mode_op1);
-                    let op2 = self.load_with_mode(self.program_counter + 2, mode_op2);
+                    let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
                     let out_reg = self.load(self.program_counter + 3);
                     println!("ADD {} {} into {}", op1, op2, out_reg);
 
                     self.store(out_reg, op1 + op2);
                 }
                 2 => {
-                    let op1 = self.load_with_mode(self.program_counter + 1, mode_op1);
-                    let op2 = self.load_with_mode(self.program_counter + 2, mode_op2);
+                    let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
                     let out_reg = self.load(self.program_counter + 3);
                     println!("MULT {} {} into {}", op1, op2, out_reg);
 
@@ -59,15 +68,11 @@ impl Machine {
             }
 
             println!("{:?}", self);
-            match instr {
-                3|4 => {
-                    self.program_counter += 2;
-                }
-                _ => {
-                    self.program_counter += 4;
-                }
+            self.program_counter += match instr.opcode {
+                1|2 => 4,
+                3|4 => 2,
+                _ => unreachable!("invalid opcode")
             }
-
         }
     }
 
@@ -81,7 +86,7 @@ impl Machine {
        //                               omitted due to being a leading zero
     // Parameters that an instruction writes to will never be in immediate mode.
     // return opcode first and return modes as items 1, 2, 3 of tuple
-    fn get_instr_and_modes(self: &Self) -> (i32, i32, i32, i32) {
+    fn get_instr_and_modes(self: &Self) -> Instruction {
 
         let instr = self.load(self.program_counter);
         let digits_str = instr.to_string();
@@ -90,17 +95,16 @@ impl Machine {
 
         match digits_str.len() {
             1 => {
-                (digits[0], 0, 0, 0)
+                Instruction { length: digits.len(), opcode: digits[0], mode_op1: 0, mode_op2: 0, mode_op3: 0}
             }
             2 => {
-                (digits[0] * 10 + digits[1], 0, 0, 0)
+                Instruction { length: digits.len(), opcode: digits[0] * 10 + digits[1], mode_op1: 0, mode_op2: 0, mode_op3: 0}
             }
             3 => {
-                (digits[1] * 10 + digits[2], digits[0], 0, 0)
+                Instruction { length: digits.len(), opcode: digits[1] * 10 + digits[2], mode_op1: digits[0], mode_op2: 0, mode_op3: 0}
             }
             4 => {
-                println!("digits[1]: {}, digits[0]: {}, digits[1] * 10 + digits[0]: {}", digits[1], digits[0], digits[1] * 10 + digits[0]);
-                (digits[2] * 10 + digits[3], digits[1], digits[0], 0)
+                Instruction { length: digits.len(), opcode: digits[2] * 10 + digits[3], mode_op1: digits[1], mode_op2: digits[0], mode_op3: 0}
             }
             5 => {
                 unreachable!("theoretically possible but shouldn't happen because param 3 should never be in immediate mode: {:?}", digits);
