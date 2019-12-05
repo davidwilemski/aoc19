@@ -15,6 +15,7 @@ impl Machine {
     pub fn execute(self: &mut Self) {
         loop {
             let (instr, mode_op1, mode_op2, _) = self.get_instr_and_modes();
+            println!("{}, {}, {}, {}", instr, mode_op1, mode_op2, "xx");
             match instr {
                 99 => {
                     println!("HALT");
@@ -39,9 +40,13 @@ impl Machine {
                 3 => {
                     //assert!(mode_op1 == 1);
                     let op1_addr = self.load(self.program_counter + 1);
-                    println!("STORE_INPUT {} to {}", op1_addr, op1_addr);
+                    let mut input = String::new();
+                    let stdin = std::io::stdin();
+                    println!("input an i32 value: ");
+                    stdin.read_line(&mut input).unwrap();
+                    println!("STORE_INPUT {} to {}", input, op1_addr);
 
-                    self.store(op1_addr, op1_addr);
+                    self.store(op1_addr, input.trim().parse::<i32>().unwrap());
                 }
                 4 => {
                     let addr = self.load(self.program_counter + 1);
@@ -91,10 +96,11 @@ impl Machine {
                 (digits[0] * 10 + digits[1], 0, 0, 0)
             }
             3 => {
-                (digits[0] * 10 + digits[1], digits[2], 0, 0)
+                (digits[1] * 10 + digits[2], digits[0], 0, 0)
             }
             4 => {
-                (digits[0] * 10 + digits[1], digits[2], digits[3], 0)
+                println!("digits[1]: {}, digits[0]: {}, digits[1] * 10 + digits[0]: {}", digits[1], digits[0], digits[1] * 10 + digits[0]);
+                (digits[2] * 10 + digits[3], digits[1], digits[0], 0)
             }
             5 => {
                 unreachable!("theoretically possible but shouldn't happen because param 3 should never be in immediate mode: {:?}", digits);
@@ -173,6 +179,6 @@ mod tests {
         let mut m = Machine::new(vec![3, 0, 99]);
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![0, 0, 99]);
+        assert!(m.memory == vec![50, 0, 99]);
     }
 }
