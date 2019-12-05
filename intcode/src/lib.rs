@@ -62,6 +62,42 @@ impl Machine {
                     let val = self.load(addr);
                     println!("OUTPUT addr {}: val: {}", addr, val);
                 }
+                5 => {  // jump-if-true
+                    let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
+                    if op1 != 0 {
+                        self.program_counter = op2;
+                        continue; // we don't want to increment the PC like normal
+                    }
+                }
+                6 => {  // jump-if-false
+                    let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
+                    if op1 == 0 {
+                        self.program_counter = op2;
+                        continue; // we don't want to increment the PC like normal
+                    }
+                }
+                7 => {  // less-than
+                    let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
+                    let out_reg = self.load(self.program_counter + 3);
+                    if op1 < op2 {
+                        self.store(out_reg, 1);
+                    } else {
+                        self.store(out_reg, 0);
+                    }
+                }
+                8 => {  // equals
+                    let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
+                    let out_reg = self.load(self.program_counter + 3);
+                    if op1 == op2 {
+                        self.store(out_reg, 1);
+                    } else {
+                        self.store(out_reg, 0);
+                    }
+                }
                 _ => {
                     panic!("something broke!");
                 }
@@ -69,8 +105,9 @@ impl Machine {
 
             println!("{:?}", self);
             self.program_counter += match instr.opcode {
-                1|2 => 4,
+                1|2|7|8 => 4,
                 3|4 => 2,
+                5|6 => 3,
                 _ => unreachable!("invalid opcode")
             }
         }
