@@ -1,7 +1,15 @@
+use std::io::{self, BufRead};
+
+trait ReadLine<T> {
+    fn read_line(&self, buf: &mut String) -> std::io::Result<usize>;
+}
+
 #[derive(Debug, Clone)]
 pub struct Machine {
     memory: Vec<i32>,
     program_counter: i32,
+    input: Option<io::Cursor<String>>,
+    output: Vec<i32>,
 }
 
 #[derive(Debug)]
@@ -18,6 +26,8 @@ impl Machine {
         Machine {
             memory,
             program_counter: 0,
+            input: None,
+            output: vec![],
         }
     }
 
@@ -49,18 +59,28 @@ impl Machine {
                 3 => {
                     //assert!(mode_op1 == 1);
                     let op1_addr = self.load(self.program_counter + 1);
-                    let mut input = String::new();
-                    let stdin = std::io::stdin();
-                    println!("input an i32 value: ");
-                    stdin.read_line(&mut input).unwrap();
-                    println!("STORE_INPUT {} to {}", input, op1_addr);
+                    let line = self.input.as_mut().and_then(|c| {
+                        let mut input = String::new();
+                        c.read_line(&mut input).unwrap();
+                        Some(input)
+                    })
+                    .unwrap_or_else(|| {
+                        println!("input an i32 value: ");
+                        let mut input = String::new();
+                        let stdin = std::io::stdin();
+                        stdin.read_line(&mut input).unwrap();
+                        input
+                    });
+                    println!("STORE_INPUT {} to {}", line, op1_addr);
 
-                    self.store(op1_addr, input.trim().parse::<i32>().unwrap());
+                    self.store(op1_addr, line.trim().parse::<i32>().unwrap());
                 }
                 4 => {
                     let addr = self.load(self.program_counter + 1);
                     let val = self.load(addr);
                     println!("OUTPUT addr {}: val: {}", addr, val);
+
+                    self.output.push(val);
                 }
                 5 => {  // jump-if-true
                     let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
@@ -154,6 +174,14 @@ impl Machine {
 
     pub fn output(self: &Self) -> i32 {
         self.memory[0]
+    }
+
+    pub fn set_input(self: &mut Self, input: String) {
+        self.input = Some(io::Cursor::new(input))
+    }
+
+    pub fn get_output(self: &Self) -> &Vec<i32> {
+        &self.output
     }
 
     pub fn set_noun(self: &mut Self, noun: i32) {

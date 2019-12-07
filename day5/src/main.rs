@@ -16,7 +16,10 @@ fn main() -> Result<(), std::io::Error> {
     let original_state = program_state.clone();
 
     let mut machine = Machine::new(original_state.clone());
+    machine.set_input("1\n".to_string());
     machine.execute();
+
+    println!("program output: {:?}", machine.get_output());
 
     Ok(())
 }
