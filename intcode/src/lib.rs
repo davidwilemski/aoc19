@@ -9,16 +9,16 @@ trait ReadLine<T> {
 #[derive(Debug)]
 pub enum InputType {
     StringCursor(io::Cursor<String>),
-    IntReceiver(Receiver<i32>),
+    IntReceiver(Receiver<i64>),
 }
 
 #[derive(Debug)]
 pub struct Machine {
-    memory: Vec<i32>,
-    program_counter: i32,
+    memory: Vec<i64>,
+    program_counter: i64,
     input: VecDeque<InputType>,
-    output_tx: Option<SyncSender<i32>>,
-    output: Vec<i32>,
+    output_tx: Option<SyncSender<i64>>,
+    output: Vec<i64>,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ struct Instruction {
 }
 
 impl Machine {
-    pub fn new(memory: Vec<i32>) -> (Receiver<i32>, Self) {
+    pub fn new(memory: Vec<i64>) -> (Receiver<i64>, Self) {
         let (tx, rx) = sync_channel(1024);
         (rx, Machine {
             memory,
@@ -74,7 +74,7 @@ impl Machine {
                     let line = self.get_input();
                     println!("tid {:?}: STORE_INPUT {} to {}", thread_id(), line, op1_addr);
 
-                    self.store(op1_addr, line.trim().parse::<i32>().unwrap());
+                    self.store(op1_addr, line.trim().parse::<i64>().unwrap());
                 }
                 4 => {
                     let val = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
@@ -183,7 +183,7 @@ impl Machine {
         }
     }
 
-    pub fn output(self: &Self) -> i32 {
+    pub fn output(self: &Self) -> i64 {
         self.memory[0]
     }
 
@@ -218,7 +218,7 @@ impl Machine {
                 },
             }
         } else {
-            println!("tid {:?}: input an i32 value: ", thread_id());
+            println!("tid {:?}: input an i64 value: ", thread_id());
             let mut input = String::new();
             let stdin = std::io::stdin();
             stdin.read_line(&mut input).unwrap();
@@ -226,7 +226,7 @@ impl Machine {
         }
     }
 
-    pub fn get_output(&self) -> &Vec<i32> {
+    pub fn get_output(&self) -> &Vec<i64> {
         &self.output
     }
 
@@ -239,21 +239,21 @@ impl Machine {
     }
 
 
-    pub fn set_noun(self: &mut Self, noun: i32) {
+    pub fn set_noun(self: &mut Self, noun: i64) {
         self.memory[1] = noun;
     }
 
-    pub fn set_verb(self: &mut Self, verb: i32) {
+    pub fn set_verb(self: &mut Self, verb: i64) {
         self.memory[2] = verb;
     }
 
-    fn load(self: &Self, addr: i32) -> i32 {
+    fn load(self: &Self, addr: i64) -> i64 {
         let result = self.memory[addr as usize];
         println!("tid {:?}: LOADING addr: {}, val: {}", thread_id(), addr, result);
         result
     }
 
-    fn load_with_mode(self: &Self, addr: i32, mode: i32) -> i32 {
+    fn load_with_mode(self: &Self, addr: i64, mode: i32) -> i64 {
         match mode {
             0 => self.load(self.load(addr)),
             1 => self.load(addr),
@@ -261,7 +261,7 @@ impl Machine {
         }
     }
 
-    fn store(self: &mut Self, addr: i32, val: i32) {
+    fn store(self: &mut Self, addr: i64, val: i64) {
         self.memory[addr as usize] = val;
     }
 }
@@ -276,27 +276,27 @@ mod tests {
 
     #[test]
     fn it_handles_test_cases() {
-        let mut m = Machine::new(vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50]);
+        let (_, mut m) = Machine::new(vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50]);
         m.execute();
         println!("{:?}", m.memory);
         assert!(m.memory == vec![3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50]);
 
-        let mut m = Machine::new(vec![1, 0, 0, 0, 99]);
+        let (_, mut m) = Machine::new(vec![1, 0, 0, 0, 99]);
         m.execute();
         println!("{:?}", m.memory);
         assert!(m.memory == vec![2, 0, 0, 0, 99]);
 
-        let mut m = Machine::new(vec![2, 3, 0, 3, 99]);
+        let (_, mut m) = Machine::new(vec![2, 3, 0, 3, 99]);
         m.execute();
         println!("{:?}", m.memory);
         assert!(m.memory == vec![2, 3, 0, 6, 99]);
 
-        let mut m = Machine::new(vec![2, 4, 4, 5, 99, 0]);
+        let (_, mut m) = Machine::new(vec![2, 4, 4, 5, 99, 0]);
         m.execute();
         println!("{:?}", m.memory);
         assert!(m.memory == vec![2, 4, 4, 5, 99, 9801]);
 
-        let mut m = Machine::new(vec![1, 1, 1, 4, 99, 5, 6, 0, 99]);
+        let (_, mut m) = Machine::new(vec![1, 1, 1, 4, 99, 5, 6, 0, 99]);
         m.execute();
         println!("{:?}", m.memory);
         assert!(m.memory == vec![30, 1, 1, 4, 2, 5, 6, 0, 99]);
@@ -304,9 +304,18 @@ mod tests {
 
     #[test]
     fn it_handles_input_instr_opcode_3() {
-        let mut m = Machine::new(vec![3, 0, 99]);
+        let (_, mut m) = Machine::new(vec![3, 0, 99]);
+        m.set_input_string("50".to_string());
         m.execute();
         println!("{:?}", m.memory);
-        assert!(m.memory == vec![50, 0, 99]);
+        assert_eq!(m.memory, vec![50, 0, 99]);
+    }
+
+    #[test]
+    fn it_supports_large_numbers() {
+        let (rx, mut m) = Machine::new(vec![104,1125899906842624,99]);
+        m.execute();
+
+        assert_eq!(rx.recv().unwrap(), 1125899906842624);
     }
 }

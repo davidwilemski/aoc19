@@ -16,8 +16,8 @@ fn main() -> Result<(), std::io::Error> {
         })
         .map(|v| v.ok())
         .map(|v| v.unwrap())
-        .map(|v| v.replace('\n', "").parse::<i32>().unwrap())
-        .collect::<Vec<i32>>();
+        .map(|v| v.replace('\n', "").parse::<i64>().unwrap())
+        .collect::<Vec<i64>>();
 
     let original_state = program_state.clone();
 
@@ -32,7 +32,7 @@ fn main() -> Result<(), std::io::Error> {
     for noun in 0..99 {
         for verb in 0..99 {
             println!("noun: {}, verb: {}", noun, verb);
-            let mut machine = Machine::new(original_state.clone());
+            let (_, mut machine) = Machine::new(original_state.clone());
             machine.set_noun(noun);
             machine.set_verb(verb);
             machine.execute();

@@ -9,8 +9,8 @@ fn main() -> Result<(), std::io::Error> {
     let program_str = include_str!("../input1.txt");
     let program_state = program_str
         .split(",")
-        .map(|v| v.replace('\n', "").parse::<i32>().unwrap())
-        .collect::<Vec<i32>>();
+        .map(|v| v.replace('\n', "").parse::<i64>().unwrap())
+        .collect::<Vec<i64>>();
 
     let original_state = program_state.clone();
 
