@@ -1,15 +1,13 @@
 use std::io::prelude::*;
-use std::io::BufReader;
 
 fn main() -> Result<(), std::io::Error> {
     let mut stdin = std::io::stdin();
-    // let reader = BufReader::new(stdin);
 
     let mut bytes = vec![];
     stdin.read_to_end(&mut bytes)?;
-    let digits : Vec<u32> = bytes.iter().enumerate()
-        .filter(|(_, b)| b.is_ascii_digit())
-        .map(|(i, b)| {
+    let digits : Vec<u32> = bytes.iter()
+        .filter(|b| b.is_ascii_digit())
+        .map(|b| {
             char::from(*b).to_digit(10).unwrap()
         })
     .collect();
@@ -21,7 +19,7 @@ fn main() -> Result<(), std::io::Error> {
         .map(|(i, layer)| {
             (i, layer.iter().filter(|v| **v == 0).count())
         })
-        .min_by_key(|(i, count)| *count).unwrap();
+        .min_by_key(|(_, count)| *count).unwrap();
     println!("layer with min zeros: {:?}", min_zeros);
 
 
@@ -66,7 +64,6 @@ impl std::fmt::Display for Pixel {
             Pixel::Black => " ",
             Pixel::White => "1",
             Pixel::Transparent => " ",
-            _ => panic!("shouldn't happen")
         };
         write!(f, "{}", val)
     }
