@@ -32,9 +32,15 @@ struct Instruction {
 
 impl Machine {
     pub fn new(memory: Vec<i64>) -> (Receiver<i64>, Self) {
+        // "available memory should be much larger than the initial program"
+        // I'm also setting an upper bount on size at 2^30 for memory reasons
+        let mut extended_mem = vec![0; (memory.len() * 1024).min(1073741824)];
+        for (i, val) in memory.iter().enumerate() {
+            extended_mem[i] = *val;
+        }
         let (tx, rx) = sync_channel(1024);
         (rx, Machine {
-            memory,
+            memory: extended_mem,
             program_counter: 0,
             input: VecDeque::new(),
             output_tx: Some(tx),
