@@ -77,9 +77,8 @@ impl Machine {
                     self.store(op1_addr, line.trim().parse::<i32>().unwrap());
                 }
                 4 => {
-                    let addr = self.load(self.program_counter + 1);
-                    let val = self.load(addr);
-                    println!("tid {:?}: OUTPUT addr {}: val: {}", thread_id(), addr, val);
+                    let val = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
+                    println!("tid {:?}: OUTPUT val: {}", thread_id(), val);
 
                     self.output.push(val);
                     match &self.output_tx {
