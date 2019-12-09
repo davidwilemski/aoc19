@@ -1,14 +1,23 @@
+use std::collections::VecDeque;
 use std::io::{self, BufRead};
+use std::sync::mpsc::{sync_channel, SyncSender, Receiver};
 
 trait ReadLine<T> {
     fn read_line(&self, buf: &mut String) -> std::io::Result<usize>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub enum InputType {
+    StringCursor(io::Cursor<String>),
+    IntReceiver(Receiver<i32>),
+}
+
+#[derive(Debug)]
 pub struct Machine {
     memory: Vec<i32>,
     program_counter: i32,
-    input: Option<io::Cursor<String>>,
+    input: VecDeque<InputType>,
+    output_tx: Option<SyncSender<i32>>,
     output: Vec<i32>,
 }
 
@@ -22,29 +31,32 @@ struct Instruction {
 }
 
 impl Machine {
-    pub fn new(memory: Vec<i32>) -> Self {
-        Machine {
+    pub fn new(memory: Vec<i32>) -> (Receiver<i32>, Self) {
+        let (tx, rx) = sync_channel(1024);
+        (rx, Machine {
             memory,
             program_counter: 0,
-            input: None,
+            input: VecDeque::new(),
+            output_tx: Some(tx),
             output: vec![],
-        }
+        })
     }
 
     pub fn execute(self: &mut Self) {
         loop {
             let instr = self.get_instr_and_modes();
-            println!("Instr: {:?}", instr);
+            println!("tid {:?}: Instr: {:?}", thread_id(), instr);
             match instr.opcode {
                 99 => {
-                    println!("HALT");
+                    println!("tid {:?}: HALT", thread_id());
+                    self.output_tx = None;
                     break;
                 }
                 1 => {
                     let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
                     let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
                     let out_reg = self.load(self.program_counter + 3);
-                    println!("ADD {} {} into {}", op1, op2, out_reg);
+                    println!("tid {:?}: ADD {} {} into {}", thread_id(), op1, op2, out_reg);
 
                     self.store(out_reg, op1 + op2);
                 }
@@ -52,35 +64,28 @@ impl Machine {
                     let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
                     let op2 = self.load_with_mode(self.program_counter + 2, instr.mode_op2);
                     let out_reg = self.load(self.program_counter + 3);
-                    println!("MULT {} {} into {}", op1, op2, out_reg);
+                    println!("tid {:?}: MULT {} {} into {}", thread_id(), op1, op2, out_reg);
 
                     self.store(out_reg, op1 * op2);
                 }
                 3 => {
                     //assert!(mode_op1 == 1);
                     let op1_addr = self.load(self.program_counter + 1);
-                    let line = self.input.as_mut().and_then(|c| {
-                        let mut input = String::new();
-                        c.read_line(&mut input).unwrap();
-                        Some(input)
-                    })
-                    .unwrap_or_else(|| {
-                        println!("input an i32 value: ");
-                        let mut input = String::new();
-                        let stdin = std::io::stdin();
-                        stdin.read_line(&mut input).unwrap();
-                        input
-                    });
-                    println!("STORE_INPUT {} to {}", line, op1_addr);
+                    let line = self.get_input();
+                    println!("tid {:?}: STORE_INPUT {} to {}", thread_id(), line, op1_addr);
 
                     self.store(op1_addr, line.trim().parse::<i32>().unwrap());
                 }
                 4 => {
                     let addr = self.load(self.program_counter + 1);
                     let val = self.load(addr);
-                    println!("OUTPUT addr {}: val: {}", addr, val);
+                    println!("tid {:?}: OUTPUT addr {}: val: {}", thread_id(), addr, val);
 
                     self.output.push(val);
+                    match &self.output_tx {
+                        Some(tx) => tx.send(val).unwrap_or(()),
+                        None => panic!("missing output tx"),
+                    }
                 }
                 5 => {  // jump-if-true
                     let op1 = self.load_with_mode(self.program_counter + 1, instr.mode_op1);
@@ -123,7 +128,7 @@ impl Machine {
                 }
             }
 
-            println!("{:?}", self);
+            // println!("{:?}", self);
             self.program_counter += match instr.opcode {
                 1|2|7|8 => 4,
                 3|4 => 2,
@@ -131,6 +136,13 @@ impl Machine {
                 _ => unreachable!("invalid opcode")
             }
         }
+
+    }
+
+    pub fn execute_async(mut self: Self) -> std::thread::JoinHandle<()> {
+        std::thread::spawn(move || {
+            self.execute();
+        })
     }
 
     // ABCDE
@@ -148,7 +160,7 @@ impl Machine {
         let instr = self.load(self.program_counter);
         let digits_str = instr.to_string();
         let digits = (0..digits_str.len()).map(|i| digits_str.get(i..i+1).unwrap().parse::<i32>().unwrap()).collect::<Vec<i32>>();
-        println!("{:?}", digits);
+        // println!("{:?}", digits);
 
         match digits_str.len() {
             1 => {
@@ -176,13 +188,57 @@ impl Machine {
         self.memory[0]
     }
 
-    pub fn set_input(self: &mut Self, input: String) {
-        self.input = Some(io::Cursor::new(input))
+    fn get_input(&mut self) -> String {
+        if let Some(input_type) = self.input.pop_front() {
+            match input_type {
+                InputType::StringCursor(mut c) => {
+                    let mut input = String::new();
+                    match c.read_line(&mut input) {
+                        Ok(_) => {
+                            if input != "" {
+                                self.input.push_front(InputType::StringCursor(c));
+                                input
+                            }
+                            else {
+                                self.get_input()
+                            }
+                        },
+                        Err(_) => self.get_input(),
+                    }
+                },
+                InputType::IntReceiver(rx) => {
+                    println!("tid {:?}: waiting on rx for input...", thread_id());
+                    match rx.recv() {
+                        Ok(input) => {
+                            self.input.push_front(InputType::IntReceiver(rx));
+                            input.to_string()
+                        }
+                        Err(_) => self.get_input()
+                    }
+
+                },
+            }
+        } else {
+            println!("tid {:?}: input an i32 value: ", thread_id());
+            let mut input = String::new();
+            let stdin = std::io::stdin();
+            stdin.read_line(&mut input).unwrap();
+            input
+        }
     }
 
-    pub fn get_output(self: &Self) -> &Vec<i32> {
+    pub fn get_output(&self) -> &Vec<i32> {
         &self.output
     }
+
+    pub fn set_input(self: &mut Self, input: InputType) {
+        self.input.push_back(input);
+    }
+
+    pub fn set_input_string(self: &mut Self, input: String) {
+        self.input.push_back(InputType::StringCursor(io::Cursor::new(input)));
+    }
+
 
     pub fn set_noun(self: &mut Self, noun: i32) {
         self.memory[1] = noun;
@@ -194,7 +250,7 @@ impl Machine {
 
     fn load(self: &Self, addr: i32) -> i32 {
         let result = self.memory[addr as usize];
-        println!("LOADING addr: {}, val: {}", addr, result);
+        println!("tid {:?}: LOADING addr: {}, val: {}", thread_id(), addr, result);
         result
     }
 
@@ -209,6 +265,10 @@ impl Machine {
     fn store(self: &mut Self, addr: i32, val: i32) {
         self.memory[addr as usize] = val;
     }
+}
+
+fn thread_id() -> std::thread::ThreadId {
+    std::thread::current().id()
 }
 
 #[cfg(test)]
